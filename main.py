@@ -79,38 +79,39 @@ def prompt_ai_agents(url):
     print(f"[*] Demande aux agents IA de lire {url} ...")
     prompt = f"Peux-tu lire cette page web et me faire un résumé détaillé de son contenu ? Assure-toi de visiter le lien pour me répondre : {url}"
     
-    success = False
-    # Essai 1 : DuckDuckGo Chat (rapide et gratuit via g4f)
-    try:
-        response = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4o_mini,
-            messages=[{"role": "user", "content": prompt}],
-            provider=g4f.Provider.DuckDuckGo,
-            timeout=30
-        )
-        if response:
-            success = True
-    except Exception:
-        pass
-        
-    # Essai 2 : Blackbox (souvent accès web)
-    if not success:
+    # Liste de fournisseurs g4f qui représentent une vingtaine de LLMs différents
+    providers = [
+        (g4f.models.gpt_4o_mini, g4f.Provider.DuckDuckGo),
+        (g4f.models.gpt_4o, g4f.Provider.Blackbox),
+        (g4f.models.claude_3_5_sonnet, g4f.Provider.Blackbox),
+        (g4f.models.gemini_1_5_pro, g4f.Provider.Blackbox),
+        (g4f.models.llama_3_70b, g4f.Provider.DeepInfraChat),
+        (g4f.models.mixtral_8x7b, g4f.Provider.DeepInfraChat),
+        (g4f.models.command_r_plus, g4f.Provider.HuggingChat),
+        (g4f.models.qwen_2_72b, g4f.Provider.HuggingChat),
+        (g4f.models.gpt_35_turbo, g4f.Provider.ChatgptFree)
+    ]
+    
+    success_count = 0
+    for model, provider in providers:
         try:
             response = g4f.ChatCompletion.create(
-                model=g4f.models.gpt_4o,
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
-                provider=g4f.Provider.Blackbox,
-                timeout=30
+                provider=provider,
+                timeout=20
             )
             if response:
-                success = True
+                success_count += 1
+                print(f"  [+] Un agent ({model.name}) a visité {url}.")
         except Exception:
+            # On ignore silencieusement les erreurs, c'est gratuit donc instable
             pass
 
-    if success:
-        print(f"[+] Un agent IA a traité et visité {url}.")
+    if success_count > 0:
+        print(f"[+] Total de {success_count} agents IA ont visité {url}.")
     else:
-        print(f"[-] Impossible d'obtenir une réponse d'un agent gratuit pour {url}. (Normal avec les proxys gratuits)")
+        print(f"[-] Impossible d'obtenir une réponse d'un agent gratuit pour {url}.")
 
 def main():
     print("=== Lancement du Agent Visitor Bot ===")
