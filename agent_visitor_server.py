@@ -6,17 +6,21 @@ import g4f
 import re
 import os
 
-# Clé IndexNow existante sur le serveur Caddy
-INDEXNOW_KEY = "7d4b1a8f9c2e4d0b8a1c3e5f7a9b2d4e"
-CADDYFILE_PATH = "/opt/pierref/Caddyfile"
+import argparse
 
-def get_domains_from_caddyfile():
+def get_args():
+    parser = argparse.ArgumentParser(description="Agent Visitor - Automated AI Indexing Bot")
+    parser.add_argument("--caddyfile", default="/etc/caddy/Caddyfile", help="Path to the Caddyfile for dynamic domain extraction")
+    parser.add_argument("--indexnow-key", default=os.environ.get("INDEXNOW_KEY", ""), help="IndexNow API key (or set INDEXNOW_KEY env var)")
+    return parser.parse_args()
+
+def get_domains_from_caddyfile(caddyfile_path):
     domains = set()
-    if not os.path.exists(CADDYFILE_PATH):
-        print(f"[-] Caddyfile non trouvé à {CADDYFILE_PATH}. Assurez-vous d'être sur le serveur.")
+    if not os.path.exists(caddyfile_path):
+        print(f"[-] Caddyfile non trouvé à {caddyfile_path}. Assurez-vous d'être sur le bon serveur ou spécifiez --caddyfile.")
         return []
     
-    with open(CADDYFILE_PATH, 'r') as f:
+    with open(caddyfile_path, 'r') as f:
         content = f.read()
     
     # Trouver tous les blocs de domaines dans le Caddyfile.
@@ -55,8 +59,10 @@ def get_urls_from_sitemap(domain):
     
     return list(set(urls))
 
-def ping_indexnow(urls):
-    if not urls:
+def ping_indexnow(urls, indexnow_key):
+    if not urls or not indexnow_key:
+        if not indexnow_key:
+            print("[-] Pas de clé IndexNow fournie, étape ignorée.")
         return
     
     from collections import defaultdict
@@ -68,8 +74,8 @@ def ping_indexnow(urls):
     for host, host_urls in host_groups.items():
         payload = {
             "host": host,
-            "key": INDEXNOW_KEY,
-            "keyLocation": f"https://{host}/{INDEXNOW_KEY}.txt",
+            "key": indexnow_key,
+            "keyLocation": f"https://{host}/{indexnow_key}.txt",
             "urlList": host_urls
         }
         try:
@@ -118,11 +124,12 @@ def prompt_ai_agents(url):
         print(f"[-] Impossible d'obtenir une réponse d'un agent gratuit pour {url}.")
 
 def main():
+    args = get_args()
     print("=== Lancement du Agent Visitor Bot (Mode Serveur One-Shot) ===")
     
     # 1. Extraction dynamique des domaines depuis Caddyfile
     print("\n[*] Lecture dynamique du Caddyfile...")
-    domains = get_domains_from_caddyfile()
+    domains = get_domains_from_caddyfile(args.caddyfile)
     if not domains:
         print("Aucun domaine trouvé, arrêt du bot.")
         return
@@ -142,7 +149,7 @@ def main():
     
     # 2. Soumission aux moteurs de recherche (IndexNow)
     print("\n=== Soumission à IndexNow (Bing, Yandex, Seznam) ===")
-    ping_indexnow(all_urls)
+    ping_indexnow(all_urls, args.indexnow_key)
     
     # 3. Stimulation des Agents IA (G4F)
     print("\n=== Stimulation des Agents IA ===")
